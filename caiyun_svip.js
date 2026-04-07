@@ -1,20 +1,29 @@
-/*
-彩云天气 SVIP 本地解锁脚本
-*/
-let obj = JSON.parse($response.body);
+/* 彩云天气 SVIP 增强版 */
+let body = $response.body;
+if (!body) $done({});
 
-if ($request.url.includes("/v1/config/membership/svip/rights")) {
-    obj.data = obj.data || {};
-    obj.data.is_svip = true;
-    obj.data.svip_expired_at = 4070880000;
-    obj.data.is_vip = true;
-    obj.data.vip_expired_at = 4070880000;
+try {
+    let obj = JSON.parse(body);
+    // 覆盖所有可能的会员权益接口
+    const vipInfo = {
+        "is_svip": true,
+        "svip_expired_at": 4070880000,
+        "is_vip": true,
+        "vip_type": "s", 
+        "vip_expired_at": 4070880000,
+        "status": "active"
+    };
+
+    if (obj.data) {
+        obj.data = { ...obj.data, ...vipInfo };
+    } else if (obj.result) {
+        obj.result = { ...obj.result, ...vipInfo };
+    } else {
+        // 如果结构完全不同，直接合并到根目录
+        Object.assign(obj, vipInfo);
+    }
+
+    $done({ body: JSON.stringify(obj) });
+} catch (e) {
+    $done({});
 }
-
-if ($request.url.includes("/v3/config/membership/svip/rights")) {
-    obj.result = obj.result || {};
-    obj.result.is_svip = true;
-    obj.result.expires_at = 4070880000;
-}
-
-$done({body: JSON.stringify(obj)});
