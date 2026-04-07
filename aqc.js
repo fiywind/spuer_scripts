@@ -1,51 +1,33 @@
 /**
- * @name 爱企查超级会员/专业会员解锁完整版
- * @author Gemini
- * @description 覆盖个人中心、VIP详情及专业版校验接口
+ * @name 爱企查超级会员/专业会员解锁 (增强版)
  */
 
-let obj = JSON.parse($response.body || '{}');
+let body = $response.body;
+if (!body) $done({});
+let obj = JSON.parse(body);
 const url = $request.url;
 
-// 1. 处理核心用户信息接口 (usercenter/getvipinfoajax)
-if (url.includes("/usercenter/getvipinfoajax")) {
-    if (obj.data) {
-        obj.data.isVip = "1";
-        obj.data.vipType = "2"; // 2 为超级会员
-        obj.data.consumeVip = "1";
-        obj.data.vipEndTime = "2099-12-31";
-        obj.data.isExpert = "1"; // 开启专业版权限
-        obj.data.expertEndTime = "2099-12-31";
-        obj.data.vip_end_time = "2099-12-31";
+// 统一解锁函数
+const fillVip = (data) => {
+    if (data) {
+        data.isVip = "1";
+        data.is_vip = 1;
+        data.vipType = "2";
+        data.vip_type = 2;
+        data.vipEndTime = "2099-12-31";
+        data.vip_end_time = "2099-12-31";
+        data.isExpert = "1";
+        data.is_expert = 1;
+        data.consumeVip = "1";
     }
-}
+};
 
-// 2. 处理个人中心基础信息接口 (user/getuserinfo)
-if (url.includes("/user/getuserinfo")) {
-    if (obj.data) {
-        obj.data.is_vip = 1;
-        obj.data.vip_type = 2;
-        obj.data.is_expert = 1;
-        obj.data.vip_end_time = "2099-12-31";
-    }
-}
-
-// 3. 处理会员状态提示接口 (vip/getviptips)
-if (url.includes("/vip/getviptips")) {
-    obj.data = {
-        "is_vip": 1,
-        "vip_type": 2,
-        "expire_time": "2099-12-31",
-        "is_expert": 1
-    };
-}
-
-// 4. 处理通用 VIP 详情
-if (url.includes("/vip/getVipDetail")) {
-    if (obj.data) {
-        obj.data.isVip = 1;
-        obj.data.vipType = 2;
-        obj.data.vipEndTime = "2099-12-31";
+// 匹配所有包含用户信息、VIP信息的接口
+if (url.includes("ajax")) {
+    fillVip(obj.data);
+    // 针对某些接口 data 就是数组的情况
+    if (Array.isArray(obj.data)) {
+        obj.data.forEach(item => fillVip(item));
     }
 }
 
