@@ -1,25 +1,41 @@
 /**
- * @name Widgy All-in-One Unlock
- * @description 解锁 Widgy 所有主屏幕、锁屏、Watchy 插槽及内购功能
+ * @name Widgy All-in-One Unlock (2026 Edition)
+ * @description 解锁所有插槽及 Premium 功能
  */
 
 let obj = JSON.parse($response.body);
 
-const allSlots = [
-  {"product_id": "widgy_slot_2", "quantity": "1", "purchase_date": "2024-01-01 00:00:00 Etc/GMT"},
-  {"product_id": "widgy_slot_3", "quantity": "1", "purchase_date": "2024-01-01 00:00:00 Etc/GMT"},
-  {"product_id": "widgy_slot_4", "quantity": "1", "purchase_date": "2024-01-01 00:00:00 Etc/GMT"},
-  {"product_id": "widgy_slot_5", "quantity": "1", "purchase_date": "2024-01-01 00:00:00 Etc/GMT"},
-  {"product_id": "widgy_slot_6", "quantity": "1", "purchase_date": "2024-01-01 00:00:00 Etc/GMT"},
-  {"product_id": "widgy_slot_7", "quantity": "1", "purchase_date": "2024-01-01 00:00:00 Etc/GMT"},
-  {"product_id": "widgy_slot_8", "quantity": "1", "purchase_date": "2024-01-01 00:00:00 Etc/GMT"},
-  {"product_id": "widgy_lock_1", "quantity": "1", "purchase_date": "2024-01-01 00:00:00 Etc/GMT"},
-  {"product_id": "watchy_slot_1", "quantity": "1", "purchase_date": "2024-01-01 00:00:00 Etc/GMT"}
+// 定义所有需要解锁的商品 ID
+const products = [
+    "widgy_premium",
+    "widgy_slot_2", "widgy_slot_3", "widgy_slot_4",
+    "widgy_slot_5", "widgy_slot_6", "widgy_slot_7", "widgy_slot_8",
+    "widgy_lock_1", "widgy_lock_2", "widgy_lock_3",
+    "watchy_slot_1", "watchy_slot_2"
 ];
 
-obj.receipt = obj.receipt || {};
-obj.receipt.in_app = allSlots;
-obj.latest_receipt_info = allSlots;
+// 构建内购列表
+const inApp = products.map(id => ({
+    "quantity": "1",
+    "product_id": id,
+    "transaction_id": "1000000000000000",
+    "original_transaction_id": "1000000000000000",
+    "purchase_date": "2024-01-01 00:00:00 Etc/GMT",
+    "purchase_date_ms": "1704067200000",
+    "original_purchase_date": "2024-01-01 00:00:00 Etc/GMT",
+    "expires_date": "2099-12-31 23:59:59 Etc/GMT"
+}));
+
+// 注入收据信息
+obj.receipt = {
+    "receipt_type": "Production",
+    "bundle_id": "com.razdev.widgy",
+    "in_app": inApp,
+    "application_version": "1",
+    "original_application_version": "1",
+    "download_id": 1000000000000000
+};
+obj.latest_receipt_info = inApp;
 obj.status = 0;
 
 $done({ body: JSON.stringify(obj) });
