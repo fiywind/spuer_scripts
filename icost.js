@@ -1,30 +1,39 @@
 /**
- * iCost 强力解锁脚本
- * 覆盖 service1 / priceconfig / serverless 等接口
+ * @name iCost 解锁永久会员 (兼容压缩数据版)
  */
 
 if ($response.body) {
-    let obj = JSON.parse($response.body);
-
-    // 1. 处理 service1 类型的接口数据
-    if (obj.data) {
-        obj.data.is_pro = true;
-        obj.data.is_vip = true;
-        obj.data.purchased = true;
-        obj.data.level = 1; 
-        obj.data.expire_date = 4070880000000; // 2099年
+    let obj;
+    try {
+        obj = JSON.parse($response.body);
+    } catch (e) {
+        // 如果解析失败，可能是数据格式不对或压缩了
+        $done({});
     }
 
-    // 2. 处理 priceconfig 类型的扁平数据
-    obj.is_pro = true;
-    obj.is_vip = true;
-    obj.premium = true;
-    obj.vip_status = 1;
+    // 暴力注入所有可能的 VIP 字段
+    const unlock = (target) => {
+        if (target && typeof target === 'object') {
+            target.is_pro = true;
+            target.is_vip = true;
+            target.isPro = true;
+            target.vip = true;
+            target.premium = true;
+            target.level = 1;
+            target.purchased = true;
+            target.expire_date = 4070880000000;
+            target.expires_date = "2099-12-31T23:59:59Z";
+        }
+    };
 
-    // 3. 针对 serverless 接口的配置下发
-    if (obj.config) {
-        obj.config.is_free_trial = false;
-        obj.config.has_purchased = true;
+    // 扫描所有层级
+    unlock(obj);
+    if (obj.data) unlock(obj.data);
+    if (obj.config) unlock(obj.config);
+    
+    // 特别针对 service1 接口的特殊结构
+    if (obj.data && Array.isArray(obj.data)) {
+        obj.data.forEach(item => unlock(item));
     }
 
     $done({ body: JSON.stringify(obj) });
