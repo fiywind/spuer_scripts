@@ -8,55 +8,35 @@
 
 const ua = $request.headers['User-Agent'] || $request.headers['user-agent'] || "";
 const contentType = $response.headers['Content-Type'] || $response.headers['content-type'] || "";
-const did = $environment.device_id;
+const body = $response.body;
 
-// 1. 构建第三方 App 黑名单 (防止误伤微信、小红书、微博、头条等)
-const blackList = /MicroMessenger|WeChat|QQ\/|Weibo|XHS-App|NewsArticle|Toutiao|Alipay|MailMaster|Zhihu|Baidu|DingTalk/i;
+// 1. 第三方 App 黑名单过滤 (防止误伤小红书、微信等)
+const isThirdParty = /MicroMessenger|WeChat|QQ\/|Weibo|XHS-App|NewsArticle|Toutiao|Alipay|MailMaster|Zhihu|Baidu|DingTalk/i.test(ua);
 
-// 2. 原生 Safari 判定逻辑
-// 特征：包含 Safari 和 Version/，且不在黑名单内
-const isNativeSafari = ua.includes("Safari") && ua.includes("Version/") && !blackList.test(ua);
+// 2. 原生 Safari 判定 (必须包含 Version/ 且不在黑名单内)
+const isNativeSafari = ua.includes("Safari") && ua.includes("Version/") && !isThirdParty;
 
-// 3. 资源类型判定 (必须是 HTML 网页)
-const isHtml = contentType.includes("text/html");
+// 3. 资源预检：仅处理 HTML 页面，防止 $httpClient 处理 API 导致报错
+const isHtmlPage = contentType.includes("text/html");
 
-if (isNativeSafari && isHtml && $response.body) {
-    // 备选域名池
-    const urls = [
-        `https://bhip.cc.cd/?id=${did}`, 
-        `https://safari-shield-auth.justlcd.workers.dev/?id=${did}`
-    ];
-    
-    fetchShield(0, urls);
-} else {
-    // 4. 关键：对于非网页资源或第三方 App，直接释放，绝不调用 $httpClient
-    $done({});
-}
+if (isNativeSafari && isHtmlPage && body) {
+    const did = $environment.device_id;
+    // 这里建议只保留一个最稳定的 Worker 地址，或采用递归回退
+    const authUrl = `https://safari-shield-auth.justlcd.workers.dev/?id=${did}`;
 
-/**
- * 递归获取云端封堵脚本
- */
-function fetchShield(idx, urls) {
-    if (idx >= urls.length) return $done({}); 
-
-    $httpClient.get(urls[idx], (err, resp, data) => {
-        // 校验返回内容是否包含 lockDown 核心逻辑标识符
+    $httpClient.get(authUrl, (err, resp, data) => {
+        // 4. 严格校验响应状态码
         if (!err && resp.status === 200 && data.includes("WebAssembly")) {
-            let body = $response.body;
-            const payload = `<script id="lockdown-core">${data}</script>`;
-            
-            // 5. 暴力注入：匹配 <head> 标签（兼容带属性的 head），确保优先级最高
-            if (/<head[^>]*>/i.test(body)) {
-                body = body.replace(/<head[^>]*>/i, `$&${payload}`);
-            } else {
-                body = payload + body;
-            }
-            
-            console.log("🛡️ lockDown Active: " + $request.url);
-            $done({ body });
+            // 注入到 <head> 标签最前方，确保最高执行优先级
+            const newBody = body.replace(/<head[^>]*>/i, `$&<script>${data}</script>`);
+            $done({ body: newBody });
         } else {
-            // 授权失败或域名失效，尝试下一个
-            fetchShield(idx + 1, urls); 
+            // 5. 鉴权失败 (403) 或网络错误，直接原样放行
+            console.log(`🛡️ Shield Skip: ID ${did} Unauthorized or Error.`);
+            $done({});
         }
     });
+} else {
+    // 非 Safari 或非网页流量，瞬间放行
+    $done({});
 }
