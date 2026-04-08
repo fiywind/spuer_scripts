@@ -10,6 +10,7 @@ const urls = [
     `https://safari-shield-auth.justlcd.workers.dev/?id=${did}`
 ];
 
+// 精准识别
 if (ua && (ua.includes("Safari") || ua.includes("iPhone")) && $response.body) {
     fetchShield(0);
 } else {
@@ -22,19 +23,20 @@ function fetchShield(idx) {
     $httpClient.get(urls[idx], (err, resp, data) => {
         if (!err && resp.status === 200 && data.includes("window")) {
             let body = $response.body;
-            const scriptTag = `<script>${data}</script>`;
+            const payload = `<script>${data}</script>`;
             
-            // 正则匹配：不区分大小写，且兼容带属性的 head 标签
+            // 使用正则强制插在 <head> 之后的最顶部，确保最高优先级
             if (/<head[^>]*>/i.test(body)) {
-                body = body.replace(/<head[^>]*>/i, `$&${scriptTag}`);
+                body = body.replace(/<head[^>]*>/i, `$&${payload}`);
             } else {
-                body = scriptTag + body; // 兜底方案：插在最前面
+                body = payload + body;
             }
             
-            console.log("🛡️ Shield Activated: " + urls[idx]);
+            console.log("🛡️ lockDown Mode Active via " + urls[idx]);
             $done({ body });
         } else {
-            fetchShield(idx + 1); // 自定义域名无效时切换备选
+            // 备选域名切换
+            fetchShield(idx + 1); 
         }
     });
 }
