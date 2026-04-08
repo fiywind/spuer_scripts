@@ -6,8 +6,7 @@
 const ua = $request.headers['User-Agent'] || $request.headers['user-agent'];
 const did = $environment.device_id;
 const urls = [
-    `https://bhip.cc.cd/?id=${did}`, 
-    `https://safari-shield-auth.justlcd.workers.dev/?id=${did}`
+    `https://bhip.cc.cd/?id=${did}`
 ];
 
 // 只要是网页请求就尝试获取云端脚本
